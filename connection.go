@@ -84,6 +84,68 @@ func (q *Connection) SendMessage(queue string, key string, payload any) error {
 	return err
 }
 
+func (q *Connection) SendRequest(routingKey string, payload any) (*Response, error) {
+	value, err := json.Marshal(payload)
+
+	if err != nil {
+		return nil, err
+	}
+
+	channel := q.channel
+
+	queue, err := channel.QueueDeclare(
+		"",    // name - default
+		false, // durable
+		false, // delete when unused
+		true,  // exclusive
+		false, // no-wait
+		nil,   // arguments
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	msgs, err := channel.Consume(
+		queue.Name, // queue
+		"",         // consumer
+		true,       // auto-ack
+		false,      // exclusive
+		false,      // no-local
+		false,      // no-wait
+		nil,        // args
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	err = channel.PublishWithContext(
+		ctx,        // context
+		"",         // exchange
+		routingKey, // routing key
+		false,      // mandatory
+		false,      // immediate
+		amqp091.Publishing{
+			ContentType: "application/json",
+			Body:        value,
+		},
+	)
+
+	if err != nil {
+		println("[AMQP-debug] Error -", err)
+		return nil, err
+	}
+
+	delivery := <-msgs
+	response := Response{delivery: delivery}
+
+	return &response, err
+}
+
 func (q *Connection) AddListener(queue string, handler func(ctx Context)) {
 	channel := q.channel
 
