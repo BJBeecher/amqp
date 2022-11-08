@@ -41,5 +41,4 @@ func (ctx *Context) AbortWithStatusMessage(code int, message string) {
 
 func (ctx *Context) Success(payload any) {
 	ctx.conn.SendMessage(ctx.delivery.ReplyTo, ctx.CorrelationId(), payload)
-	ctx.delivery.Ack(false)
 }
