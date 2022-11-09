@@ -39,7 +39,7 @@ type Connection struct {
 	channel *amqp091.Channel
 }
 
-func (q *Connection) SendMessage(queue string, key string, payload any) error {
+func (q *Connection) Publish(queue string, key string, payload any) error {
 	value, err := json.Marshal(payload)
 
 	if err != nil {
@@ -154,6 +154,37 @@ func (q *Connection) SendRequest(routingKey string, payload any) (*Response, err
 	response := Response{delivery: delivery}
 
 	return &response, err
+}
+
+func (q *Connection) Reply(queue string, correlationId string, payload any) {
+	value, err := json.Marshal(payload)
+
+	if err != nil {
+		println("[AMQP-debug] Error -", err)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	err = q.channel.PublishWithContext(
+		ctx,   // context
+		"",    // exchange
+		queue, // routing key
+		false, // mandatory
+		false, // immediate
+		amqp091.Publishing{
+			ContentType:   "application/json",
+			Body:          value,
+			CorrelationId: correlationId,
+		},
+	)
+
+	if err != nil {
+		println("[AMQP-debug] Error -", err)
+	} else {
+		println("[AMQP-debug] Message sent to queue:", queue)
+	}
 }
 
 func (q *Connection) AddListener(queue string, handler func(ctx Context)) {

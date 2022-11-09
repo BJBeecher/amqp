@@ -27,7 +27,7 @@ func (ctx *Context) AbortWithError(err error) {
 		"code":    500,
 		"message": message,
 	}
-	ctx.conn.SendMessage(ctx.delivery.ReplyTo, ctx.CorrelationId(), payload)
+	ctx.conn.Reply(ctx.delivery.ReplyTo, ctx.CorrelationId(), payload)
 }
 
 func (ctx *Context) AbortWithStatusMessage(code int, message string) {
@@ -36,9 +36,9 @@ func (ctx *Context) AbortWithStatusMessage(code int, message string) {
 		"code":    code,
 		"message": message,
 	}
-	ctx.conn.SendMessage(ctx.delivery.ReplyTo, ctx.CorrelationId(), payload)
+	ctx.conn.Reply(ctx.delivery.ReplyTo, ctx.CorrelationId(), payload)
 }
 
 func (ctx *Context) Success(payload any) {
-	ctx.conn.SendMessage(ctx.delivery.ReplyTo, ctx.CorrelationId(), payload)
+	ctx.conn.Reply(ctx.delivery.ReplyTo, ctx.CorrelationId(), payload)
 }
