@@ -3,6 +3,7 @@ package amqp
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -153,7 +154,15 @@ func (q *Connection) SendRequest(routingKey string, payload any) (*Response, err
 	delivery := <-msgs
 	response := Response{delivery: delivery}
 
-	return &response, err
+	var failure Failure
+	err = json.Unmarshal(delivery.Body, &failure)
+
+	if err == nil {
+		println(failure)
+		return nil, errors.New(failure.Message)
+	} else {
+		return &response, err
+	}
 }
 
 func (q *Connection) Reply(queue string, correlationId string, payload any) {
