@@ -158,7 +158,6 @@ func (q *Connection) SendRequest(routingKey string, payload any) (*Response, err
 	err = json.Unmarshal(delivery.Body, &failure)
 
 	if err == nil {
-		println(failure)
 		return nil, errors.New(failure.Message)
 	} else {
 		return &response, err
