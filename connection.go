@@ -15,7 +15,7 @@ type Configuration struct {
 	URL  string
 }
 
-func NewConnection(config Configuration) *Connection {
+func New(config Configuration) *Engine {
 
 	conn, err := amqp091.Dial(config.URL)
 
@@ -29,25 +29,27 @@ func NewConnection(config Configuration) *Connection {
 		panic(err)
 	}
 
-	return &Connection{
-		name:    config.Name,
-		channel: channel,
+	return &Engine{
+		name:       config.Name,
+		connection: conn,
+		channel:    channel,
 	}
 }
 
-type Connection struct {
-	name    string
-	channel *amqp091.Channel
+type Engine struct {
+	name       string
+	connection *amqp091.Connection
+	channel    *amqp091.Channel
 }
 
-func (q *Connection) Publish(queue string, key string, payload any) error {
+func (e *Engine) Publish(queue string, key string, payload any) error {
 	value, err := json.Marshal(payload)
 
 	if err != nil {
 		return err
 	}
 
-	channel := q.channel
+	channel := e.channel
 
 	que, err := channel.QueueDeclare(
 		queue, // name
@@ -86,14 +88,14 @@ func (q *Connection) Publish(queue string, key string, payload any) error {
 	return err
 }
 
-func (q *Connection) SendRequest(routingKey string, payload any) (*Response, error) {
+func (e *Engine) SendRequest(routingKey string, payload any) (*Response, error) {
 	value, err := json.Marshal(payload)
 
 	if err != nil {
 		return nil, err
 	}
 
-	channel := q.channel
+	channel := e.channel
 
 	queue, err := channel.QueueDeclare(
 		"",    // name - default
@@ -151,11 +153,17 @@ func (q *Connection) SendRequest(routingKey string, payload any) (*Response, err
 		return nil, err
 	}
 
-	delivery := <-msgs
-	response := Response{delivery: delivery}
+	var response Response
+
+	for delivery := range msgs {
+		if delivery.CorrelationId == correlationId.String() {
+			response = Response{delivery: delivery}
+			break
+		}
+	}
 
 	var failure Failure
-	err = json.Unmarshal(delivery.Body, &failure)
+	err = response.DecodeValue(&failure)
 
 	if err == nil {
 		return nil, errors.New(failure.Message)
@@ -164,7 +172,7 @@ func (q *Connection) SendRequest(routingKey string, payload any) (*Response, err
 	}
 }
 
-func (q *Connection) Reply(queue string, correlationId string, payload any) {
+func (e *Engine) Reply(queue string, correlationId string, payload any) {
 	value, err := json.Marshal(payload)
 
 	if err != nil {
@@ -172,10 +180,12 @@ func (q *Connection) Reply(queue string, correlationId string, payload any) {
 		return
 	}
 
+	channel := e.channel
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	err = q.channel.PublishWithContext(
+	err = channel.PublishWithContext(
 		ctx,   // context
 		"",    // exchange
 		queue, // routing key
@@ -195,8 +205,8 @@ func (q *Connection) Reply(queue string, correlationId string, payload any) {
 	}
 }
 
-func (q *Connection) AddListener(queue string, handler func(ctx Context)) {
-	channel := q.channel
+func (e *Engine) AddListener(queue string, handler func(ctx Context)) {
+	channel := e.channel
 
 	que, err := channel.QueueDeclare(
 		queue, // name
@@ -231,7 +241,7 @@ func (q *Connection) AddListener(queue string, handler func(ctx Context)) {
 
 			ctx := Context{
 				queue:    queue,
-				conn:     q,
+				engine:   e,
 				delivery: msg,
 			}
 
