@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -88,7 +89,8 @@ func (e *Engine) Publish(queue string, key string, payload any) error {
 	return err
 }
 
-func (e *Engine) SendRequest(routingKey string, payload any) (*Response, error) {
+func (e *Engine) SendRequest(routingKey string, data any) (*Response, error) {
+	payload := Payload{Data: &data}
 	value, err := json.Marshal(payload)
 
 	if err != nil {
@@ -162,14 +164,20 @@ func (e *Engine) SendRequest(routingKey string, payload any) (*Response, error) 
 		}
 	}
 
-	var failure Failure
-	err = response.DecodeValue(&failure)
+	var body Payload
+	err = response.DecodeValue(&body)
 
-	if err == nil {
-		return nil, errors.New(failure.Message)
-	} else {
-		return &response, err
+	if err != nil {
+		println("[AMQP-debug] Error -", err)
+		return nil, err
 	}
+
+	if body.Failure != nil {
+		errMessage := fmt.Sprintf("%v: %s", body.Failure.Code, body.Failure.Message)
+		return nil, errors.New(errMessage)
+	}
+
+	return &response, nil
 }
 
 func (e *Engine) Reply(queue string, correlationId string, payload any) {
