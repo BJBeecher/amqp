@@ -43,7 +43,8 @@ type Engine struct {
 	channel    *amqp091.Channel
 }
 
-func (e *Engine) Publish(queue string, key string, payload any) error {
+func (e *Engine) Publish(queue string, key string, data any) error {
+	payload := Payload{Data: &data}
 	value, err := json.Marshal(payload)
 
 	if err != nil {

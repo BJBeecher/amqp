@@ -42,20 +42,33 @@ func (ctx *Context) DecodeValue(v any) error {
 
 func (ctx *Context) AbortWithError(err error) {
 	message := err.Error()
+
 	println("[AMQP-debug] Error:", message)
-	payload := Failure{
+
+	failure := &Failure{
 		Code:    http.StatusInternalServerError,
 		Message: message,
 	}
+
+	payload := Payload{
+		Failure: failure,
+	}
+
 	ctx.engine.Reply(ctx.delivery.ReplyTo, ctx.CorrelationId(), payload)
 }
 
 func (ctx *Context) AbortWithStatusMessage(code int, message string) {
 	println("[AMQP-debug] Error:", message)
-	payload := Failure{
+
+	failure := &Failure{
 		Code:    code,
 		Message: message,
 	}
+
+	payload := Payload{
+		Failure: failure,
+	}
+
 	ctx.engine.Reply(ctx.delivery.ReplyTo, ctx.CorrelationId(), payload)
 }
 
