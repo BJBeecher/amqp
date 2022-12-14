@@ -4,9 +4,21 @@ services:
   rabbitmq:
     image: rabbitmq:management-alpine
     container_name: 'rabbitmq'
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 15s
+      retries: 2
+      timeout: 10s
     ports:
         - 5672:5672
         - 15672:15672
     volumes:
         - ~/.docker-conf/rabbitmq/data/:/var/lib/rabbitmq/
         - ~/.docker-conf/rabbitmq/log/:/var/log/rabbitmq
+
+  amqp:
+    build:
+      context: .
+    depends_on:
+      rabbitmq:
+        condition: service_healthy

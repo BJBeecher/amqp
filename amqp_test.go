@@ -6,7 +6,7 @@ func TestRequest(t *testing.T) {
 	type TestPayload struct {
 		Text string `json:"message"`
 	}
-	engine := New(Configuration{URL: "amqp://guest:guest@localhost:5672"})
+	engine := New(Configuration{URL: "amqp://guest:guest@rabbitmq:5672"})
 
 	engine.AddListener("test", func(ctx Context) {
 		var req TestPayload
