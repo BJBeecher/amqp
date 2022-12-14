@@ -181,7 +181,8 @@ func (e *Engine) SendRequest(routingKey string, data any) (*Response, error) {
 	return &response, nil
 }
 
-func (e *Engine) Reply(queue string, correlationId string, payload any) {
+func (e *Engine) Reply(queue string, correlationId string, data any) {
+	payload := Payload{Data: &data}
 	value, err := json.Marshal(payload)
 
 	if err != nil {
